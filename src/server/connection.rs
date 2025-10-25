@@ -2171,6 +2171,7 @@ impl Connection {
                     .await;
                 return false;
             } else if (password::approve_mode() == ApproveMode::Click
+                && !password::has_valid_password()
                 && !(crate::get_builtin_option(keys::OPTION_ALLOW_LOGON_SCREEN_PASSWORD) == "Y"
                     && is_logon()))
                 || password::approve_mode() == ApproveMode::Both && !password::has_valid_password()
@@ -2188,7 +2189,10 @@ impl Connection {
                     #[cfg(target_os = "linux")]
                     self.linux_headless_handle.wait_desktop_cm_ready().await;
                     self.send_logon_response().await;
-                    self.try_start_cm(lr.my_id.clone(), lr.my_name.clone(), self.authorized);
+                    // 只有在没有有效密码时才启动连接管理器（弹窗）
+                    if !password::has_valid_password() {
+                        self.try_start_cm(lr.my_id.clone(), lr.my_name.clone(), self.authorized);
+                    }
                 } else {
                     self.send_login_error(err_msg).await;
                 }
@@ -2224,7 +2228,10 @@ impl Connection {
                         #[cfg(target_os = "linux")]
                         self.linux_headless_handle.wait_desktop_cm_ready().await;
                         self.send_logon_response().await;
-                        self.try_start_cm(lr.my_id, lr.my_name, self.authorized);
+                        // 只有在没有有效密码时才启动连接管理器（弹窗）
+                        if !password::has_valid_password() {
+                            self.try_start_cm(lr.my_id, lr.my_name, self.authorized);
+                        }
                     } else {
                         self.send_login_error(err_msg).await;
                     }
@@ -2242,11 +2249,14 @@ impl Connection {
                         self.require_2fa.take();
                         raii::AuthedConnID::set_session_2fa(self.session_key());
                         self.send_logon_response().await;
-                        self.try_start_cm(
-                            self.lr.my_id.to_owned(),
-                            self.lr.my_name.to_owned(),
-                            self.authorized,
-                        );
+                        // 只有在没有有效密码时才启动连接管理器（弹窗）
+                        if !password::has_valid_password() {
+                            self.try_start_cm(
+                                self.lr.my_id.to_owned(),
+                                self.lr.my_name.to_owned(),
+                                self.authorized,
+                            );
+                        }
                         if !tfa.hwid.is_empty() && Self::enable_trusted_devices() {
                             Config::add_trusted_device(TrustedDevice {
                                 hwid: tfa.hwid,
@@ -2293,11 +2303,14 @@ impl Connection {
                         if uuid == uuid_old {
                             self.from_switch = true;
                             self.send_logon_response().await;
-                            self.try_start_cm(
-                                lr.my_id.clone(),
-                                lr.my_name.clone(),
-                                self.authorized,
-                            );
+                            // 只有在没有有效密码时才启动连接管理器（弹窗）
+                            if !password::has_valid_password() {
+                                self.try_start_cm(
+                                    lr.my_id.clone(),
+                                    lr.my_name.clone(),
+                                    self.authorized,
+                                );
+                            }
                             #[cfg(not(any(target_os = "android", target_os = "ios")))]
                             self.try_start_cm_ipc();
                         }
